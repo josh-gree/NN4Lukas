@@ -197,6 +197,8 @@ plt.legend(loc=0)
 
 # <markdowncell>
 # We can do much more complicated derivatives...
+# $$ F(A,\mathbf{x},\mathbf{y}) = \frac{1}{2} ||A\mathbf{x} - \mathbf{y}||^2 $$
+# $$ \frac{\partial F}{\partial \mathbf{x}} = (A\mathbf{x} - \mathbf{y})^T A $$
 
 # <codecell>
 #%%
@@ -204,63 +206,15 @@ A = T.matrix()
 x = T.vector()
 y = T.vector()
 
-r = T.dot(A,x) - y
-f = T.dot(r,r)
+r = y - T.dot(A,x)
+f = 0.5*T.dot(r,r)
 
 dfdx = T.grad(f,wrt=x)
 dfdx_ = theano.function([A,x,y],dfdx)
 
 A_ = np.random.rand(5,5).astype('float32')
 x_ = np.random.rand(5).astype('float32')
-y_ = np.dot(A_,x_)
+y_ = np.random.rand(5).astype('float32')
 
 print(dfdx_(A_,x_,y_))
-
-# <codecell>
-#%%
-# SCRATCH DELETE!!
-A = T.matrix()
-x = theano.shared(np.random.rand(5).astype('float32'))
-y = T.vector()
-
-r = T.dot(A,x) - y
-f = T.dot(r,r)
-
-dfdx = T.grad(f,wrt=x)
-dfdx_ = theano.function([A,y],dfdx)
-
-A_ = np.random.rand(5,5).astype('float32')
-A_ = A_.T + A_
-x_ = np.random.rand(5).astype('float32')
-y_ = np.dot(A_,x_)
-
-print(dfdx_(A_,y_))
-
-updates = OrderedDict()
-
-# <codecell>
-#%%
-updates[x] = x - 0.01*dfdx
-f_ = theano.function([A,y],f,updates=updates)
-
-# <codecell>
-#%%
-for i in range(1000):
-    loss = f_(A_,y_)
-    print(loss)
-# <codecell>
-#%%
-
-print(x.get_value())
-print(x_)
-np.allclose(x.get_value(),x_)
-
-dfdx_(A_,y_)
-
-# <codecell>
-#%%
-while not np.allclose(x.get_value(),x_):
-    loss = f_(A_,y_)
-    print(loss)
-
-x_
+print(np.dot(np.dot(A_,x_) - y_,A_))
