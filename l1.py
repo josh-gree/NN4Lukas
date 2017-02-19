@@ -197,7 +197,7 @@ plt.legend(loc=0)
 
 # <markdowncell>
 # We can do much more complicated derivatives...
-# $$ F(A,\mathbf{x},\mathbf{y}) = \frac{1}{2} ||A\mathbf{x} - \mathbf{y}||^2 $$
+# $$ F(A,\mathbf{x},\mathbf{y}) = \frac{1}{2} ||\mathbf{y} - A\mathbf{x}||^2 = \frac{1}{2}(\mathbf{y} - A\mathbf{x})^T (\mathbf{y}  - A\mathbf{x}) $$
 # $$ \frac{\partial F}{\partial \mathbf{x}} = (A\mathbf{x} - \mathbf{y})^T A $$
 
 # <codecell>
@@ -218,3 +218,120 @@ y_ = np.random.rand(5).astype('float32')
 
 print(dfdx_(A_,x_,y_))
 print(np.dot(np.dot(A_,x_) - y_,A_))
+
+
+# <markdowncell>
+# Theano makes updating variables, the weights in the NN, really easy...But we need
+# to understand shared variables first...These are variable that we need to initialise
+# with data and which we are able to change...
+
+# <codecell>
+#%%
+x = theano.shared(5)
+print(x.get_value())
+
+x.set_value(24)
+print(x.get_value())
+
+x = theano.shared(np.random.rand(2,3).astype('float32'))
+print(x.get_value())
+
+x.set_value(np.eye(4).astype('float32'))
+print(x.get_value())
+
+# <markdowncell>
+# We can update variable in the following way...
+
+# <codecell>
+#%%
+x = theano.shared(0.0)
+
+updates = OrderedDict()
+updates[x] = x + 0.1
+
+f = theano.function([],updates=updates)
+
+print(x.get_value())
+f()
+print(x.get_value())
+f()
+print(x.get_value())
+
+# <markdowncell>
+# So each time we call the function f the updates are applied to the shared variable.
+# We can update multiple variables at the same time...we can evan have a parameter that
+# controls the update - so it's not always the same update!
+
+# <codecell>
+#%%
+x = theano.shared(10.0)
+y = theano.shared(23.0)
+a  = T.scalar()
+
+updates = OrderedDict()
+updates[x] = x + a
+updates[y] = y*a
+
+f = theano.function([a],updates=updates)
+
+f(2)
+print(x.get_value())
+print(y.get_value())
+
+f(-1)
+print(x.get_value())
+print(y.get_value())
+
+# <markdowncell>
+# ## Putting it all together..
+# We are going to use theano to solve the following problem;
+# $$ \underset{x,y}{\text{minimize}} \; x^2 + y^2 + xy -2x $$
+# We are looking for the values of $x,y$ that makes $x^2 + y^2 + xy - 2x$ as small as
+# possible...The general method is very similar to what we will do when teaching a neural
+# network. Find the gradient at a particuar position and then change our initial guess by moving
+# in the opposite direction...
+
+# <codecell>
+#%%
+
+# initial guess at solution
+np.random.seed(26988)
+x0 = 100*np.random.rand()
+y0 = 100*np.random.rand()
+x = theano.shared(x0)
+y = theano.shared(y0)
+
+# the function we want to minimise
+f = x**2 + y**2 + x*y - 2*x
+
+# gradients
+dfdx = T.grad(f,wrt=x)
+dfdy = T.grad(f,wrt=y)
+
+#updates
+l_rate = 0.1
+updates = OrderedDict()
+updates[x] = x - l_rate*dfdx
+updates[y] = y - l_rate*dfdy
+
+update_step = theano.function([],updates=updates)
+f_val = theano.function([],f)
+
+
+# <markdowncell>
+# The model is all set up now to solve the optimisation problem, all that remains is
+# to repeatedly call our update function until we reach the minimum. According to wolframalpha
+# the solution should be $x = \frac{4}{3}, y = -\frac{2}{3}$. Usually we would stop calling the update
+# function once the gradient gets small (when dfdx and dfdy are small) but for now we will just do
+# 100 iterations...
+
+# <codecell>
+#%%
+#%%
+for i in range(100):
+    update_step()
+    if i % 10 == 0:
+        print('iter {}:\n @ x={},y={}\n f_val = {}\n'.format(i,
+                                                           x.get_value(),
+                                                           y.get_value(),
+                                                           f_val()))
